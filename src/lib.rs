@@ -28,8 +28,8 @@
 //! # }
 //! ```
 
-#![no_std]
-#![deny(missing_docs)]
+// #![no_std]
+// #![deny(missing_docs)]
 #![allow(deprecated)]
 #![allow(clippy::double_parens)]
 #![allow(clippy::identity_op)]
@@ -49,21 +49,22 @@ extern crate std;
 pub const DIGEST_LENGTH: usize = 20;
 
 /// Represents a Sha1 hash object in memory.
-#[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialOrd, Ord, PartialEq, Eq, Hash, Debug)]
 pub struct Sha1 {
-    state: Sha1State,
+    pub state: Sha1State,
     blocks: Blocks,
     len: u64,
 }
 
+#[derive(Debug)]
 struct Blocks {
     len: u32,
     block: [u8; 64],
 }
 
-#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash, Default)]
-struct Sha1State {
-    state: [u32; 5],
+#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash, Default, Debug)]
+pub struct Sha1State {
+    pub state: [u32; 5],
 }
 
 /// Digest generated from a `Sha1` instance.
@@ -81,7 +82,7 @@ pub struct Digest {
     data: Sha1State,
 }
 
-const DEFAULT_STATE: Sha1State = Sha1State {
+pub const DEFAULT_STATE: Sha1State = Sha1State {
     state: [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0],
 };
 
@@ -142,8 +143,12 @@ impl Sha1 {
         })
     }
 
-    /// Retrieve digest result.
     pub fn digest(&self) -> Digest {
+        self.digest_debug(false)
+    }
+
+    /// Retrieve digest result.
+    pub fn digest_debug(&self, debug: bool) -> Digest {
         let mut state = self.state;
         let bits = (self.len + (self.blocks.len as u64)) * 8;
         let extra = [
@@ -163,6 +168,15 @@ impl Sha1 {
 
         if blocklen < 56 {
             last[56..64].clone_from_slice(&extra);
+            if debug {
+                dbg!(as_block(&last[0..64]));
+                use std::convert::TryInto;
+                let v:Vec<_> = (&last[0..64]).chunks(4).map(|win| {
+                    let bytes:&[u8; 4] = win.try_into().unwrap();
+                    u32::from_be_bytes(*bytes)
+                }).collect();
+                dbg!(v);
+            }
             state.process(as_block(&last[0..64]));
         } else {
             last[120..128].clone_from_slice(&extra);
